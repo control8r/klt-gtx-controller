@@ -1,2 +1,3 @@
-# klt-gtx-controller
-Schauf KLT display gtx protocol software (For use with Lantronix XPort Direct+)
+# KLT ArtNet Controller
+
+Minimal adapter controlling Schauf KLT displays via ArtNet.
