@@ -1,3 +1,6 @@
+#define ARTNET_DEFAULT_PORT "6454"
+#define DISPLAY_DEFAULT_PORT "9000"
+
 typedef struct /*_tx_header*/ {
 	uint8_t sync;
 	uint8_t lines;
@@ -16,7 +19,7 @@ typedef struct /*_tx_page_zero*/ {
 	uint8_t dow[2];
 } tx_pagezero_hdr;
 
-ypedef struct /*_tx_page*/ {
+typedef struct /*_tx_page*/ {
 	uint8_t index[3];
 	uint8_t tempo;
 	uint8_t function;
