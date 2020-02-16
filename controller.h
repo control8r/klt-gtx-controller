@@ -1,6 +1,9 @@
 #define ARTNET_DEFAULT_PORT "6454"
+#define ARTNET_OPCODE_DMX 0x0050
+#define ARTNET_CHANNELS 3
 #define DISPLAY_DEFAULT_PORT "9000"
 
+#pragma pack(push, 1)
 typedef struct /*_tx_header*/ {
 	uint8_t sync;
 	uint8_t lines;
@@ -25,6 +28,24 @@ typedef struct /*_tx_page*/ {
 	uint8_t function;
 	uint8_t flags;
 } tx_page_hdr;
+
+typedef struct /*_message*/ {
+	size_t pages;
+	char** text;
+} message;
+
+typedef struct /*_artnet_pkt*/ {
+	uint8_t magic[8];
+	uint16_t opcode;
+	uint16_t version;
+	uint8_t sequence;
+	uint8_t port;
+	uint8_t universe;
+	uint8_t net;
+	uint16_t length;
+	uint8_t data[512];
+} artnet_pkt;
+#pragma pack(pop)
 
 //MSG tx_header pages EOT(0x04) CSUM
 

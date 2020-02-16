@@ -19,6 +19,13 @@ int config_line_display(char* line){
 			return 0;
 		}
 	}
+	else if(!strcmp(token, "width")){
+		token = strtok(NULL, " ");
+		if(token){
+			config.width = strtoul(token, NULL, 10);
+			return 0;
+		}
+	}
 	else if(!strcmp(token, "destination")){
 		token = strtok(NULL, " ");
 		if(token && !strcmp(token, "network")){
@@ -93,7 +100,38 @@ int config_line_artnet(char* line){
 }
 
 int config_line_message(char* line){
-	//TODO
+	size_t page_length = 0, additional_length = 0, page;
+	message* last = config.last_message;
+
+	if(strlen(line) == 0 || last->pages == 0){
+		//new page
+		last->text = realloc(last->text, (last->pages + 1) * sizeof(char*));
+		last->text[last->pages] = NULL;
+		last->pages++;
+	}
+
+	page = last->pages - 1;
+
+	if(strlen(line) == 0){
+		return 0;
+	}
+
+	page_length = last->text[page] ? strlen(last->text[page]) : 0;
+	additional_length = config.width ? ((strlen(line) % config.width) ? (strlen(line) / config.width + 1) * config.width : strlen(line)) : strlen(line);
+
+	//printf("Extending %zu page length from %d to %zu for %s\n", page, last->text[page] ? strlen(last->text[page]) : 0, page_length + additional_length, line);
+
+	last->text[page] = realloc(last->text[page], (page_length + additional_length + 1) * sizeof(char));
+	if(!last->text[page]){
+		printf("Failed to allocate memory\n");
+		return 1;
+	}
+
+	memset(last->text[page] + page_length, 0x20, additional_length);
+	last->text[page][page_length + additional_length] = 0;
+	strncpy(last->text[page] + page_length, line, strlen(line));
+
+	//printf("Page %zu is now \"%s\"\n", page, last->text[page]);
 	return 0;
 }
 
@@ -107,7 +145,33 @@ int config_line(char* line){
 		return 0;
 	}
 	else if(!strncmp(line, "[message ", 9)){
-		//TODO parse message header
+		char* token = NULL;
+		uint8_t start = strtoul(line + 9, &token, 10);
+		if(*token != '-'){
+			printf("Invalid message configuration header: %s\n", line);
+			return 1;
+		}
+		uint8_t end = strtoul(token + 1, NULL, 10);
+
+		if(end < start || end > 255 || start > 255){
+			printf("Invalid message range: %s\n", line);
+			return 1;
+		}
+
+		config.last_message = calloc(1, sizeof(message));
+		if(!config.last_message){
+			printf("Failed to allocate memory\n");
+			return 1;
+		}
+
+		for(; start <= end; start++){
+			if(config.message[start]){
+				printf("Message collision at %d\n", start);
+				return 1;
+			}
+			config.message[start] = config.last_message;
+		}
+
 		config.parser_state = cfg_message;
 		return 0;
 	}
@@ -159,13 +223,28 @@ int config_parse(char* config_path){
 
 	if(!rv
 			&& config.artnet_fd >= 0
-			&& config.display_fd >= 0){
+			&& config.display_fd >= 0
+			&& config.lines > 0){
 		return 0;
 	}
+	printf("Configuration failed to validate\n");
 	return 1;
 }
 
 void config_free(){
+	size_t u, p;
+
+	for(u = 0; u < (sizeof(config.message) / sizeof(message)); u++){
+		if(config.message[u]){
+			for(p = 0; p < config.message[u]->pages; p++){
+				free(config.message[u]->text[p]);
+			}
+			free(config.message[u]->text);
+			config.message[u]->text = NULL;
+			config.message[u]->pages = 0;
+		}
+	}
+
 	if(config.artnet_fd >= 0){
 		close(config.artnet_fd);
 	}

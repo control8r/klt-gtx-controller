@@ -28,11 +28,16 @@ static struct {
 	/* Display config */
 	uint8_t lines;
 	uint8_t display;
+	uint8_t width;
 
 	/* ArtNet config */
 	uint8_t net;
 	uint8_t universe;
 	uint16_t address;
+
+	/* Messages */
+	message* message[256];
+	message* last_message;
 } config = {
 	.artnet_fd = -1,
 	.display_fd = -1,
@@ -103,16 +108,51 @@ int network_fd(char* host, char* port, int socktype, uint8_t listener){
 	return fd;
 }
 
+int tx_message(message* msg, uint8_t tempo, uint8_t function){
+	size_t page;
+	for(page = 0; page < msg->pages; page++){
+		printf("Transmitting page %zu of %zu, %zu bytes, Tempo %d, Function %d\n", page + 1, msg->pages, msg->text[page] ? strlen(msg->text[page]) : 0, tempo, function);
+		printf("Contents: %s\n", msg->text[page] ? msg->text[page] : "NULL");
+		//TODO set continuation flag correctly
+	}
+	return 0;
+}
+
 int artnet_process(){
-	//TODO
+	char* recv_buffer[8192];
+	artnet_pkt* frame = (artnet_pkt*) recv_buffer;
+
+	ssize_t bytes_read = read(config.artnet_fd, recv_buffer, sizeof(recv_buffer));
+	if(bytes_read <= 0){
+		printf("Error receiving ArtNet: %s\n", strerror(errno));
+		return 1;
+	}
+
+	if(bytes_read > 20
+			&& !memcmp(frame->magic, "Art-Net\0", 8)
+			&& be16toh(frame->opcode) == ARTNET_OPCODE_DMX
+			&& frame->universe == config.universe
+			&& frame->net == config.net
+			&& be16toh(frame->length) >= config.address + ARTNET_CHANNELS){
+		if(!config.last_message){
+			printf("ArtNet input data, no message transmission yet\n");
+		}
+
+		if(config.message[frame->data[config.address]]
+				&& config.message[frame->data[config.address]] != config.last_message){
+			config.last_message = config.message[frame->data[config.address]];
+			return tx_message(config.last_message, frame->data[config.address + 1], frame->data[config.address + 2]);
+		}
+	}
+
 	return 0;
 }
 
 int display_process(){
-	char* buffer[8192];
+	char* recv_buffer[8192];
 
 	//read and ignore bytes from the display for now
-	ssize_t bytes = read(config.display_fd, buffer, sizeof(buffer));
+	ssize_t bytes = read(config.display_fd, recv_buffer, sizeof(recv_buffer));
 	if(bytes <= 0){
 		printf("Error receiving from display: %s\n", strerror(errno));
 		return 1;
@@ -154,6 +194,7 @@ int main(int argc, char** argv){
 	}
 
 	signal(SIGINT, signal_handler);
+	config.last_message = NULL;
 
 	while(!config.shutdown){
 		FD_ZERO(&read_fds);
