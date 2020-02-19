@@ -108,12 +108,64 @@ int network_fd(char* host, char* port, int socktype, uint8_t listener){
 	return fd;
 }
 
+uint8_t calc_checksum(uint8_t* data, size_t bytes){
+	uint8_t checksum = 0;
+	size_t u = 0;
+
+	for(u = 0; u < bytes; u++){
+		checksum ^= data[u];
+	}
+
+	return checksum;
+}
+
 int tx_message(message* msg, uint8_t tempo, uint8_t function){
 	size_t page;
+	tempo >>= 4;
+	function >>= 4;
+
+	tx_header hdr = {
+		.lines = config.lines,
+		.destination = config.display,
+		.eoh = 0x03,
+		.flags = HFLAGS_DEFAULT | HFLAG_CONTINUE
+	};
+
+	tx_page_hdr page_hdr = {
+		.tempo = PFLAGS_TEMPO_DEFAULT | tempo,
+		.function = PFLAGS_FUNCTION_DEFAULT | function,
+		.flags = PFLAGS_DEFAULT
+	};
+
+	char termination[2] = {0x04, 0x04};
+
 	for(page = 0; page < msg->pages; page++){
+		if(!msg->text[page]){
+			break;
+		}
+
+		if(page == msg->pages - 1
+				|| !msg->text[page + 1]){
+			hdr.flags &= ~HFLAG_CONTINUE;
+		}
+
+		page_hdr.index[0] = '0' + (page + 1) / 100;
+		page_hdr.index[1] = '0' + ((page + 1) % 100) / 10;
+		page_hdr.index[2] = '0' + (page + 1) % 10;
+
+		termination[1] = 0x04;
+		termination[1] ^= calc_checksum((uint8_t*) &hdr, sizeof(hdr));
+		termination[1] ^= calc_checksum((uint8_t*) &page_hdr, sizeof(page_hdr));
+		termination[1] ^= calc_checksum((uint8_t*) msg->text[page], strlen(msg->text[page]));
+
 		printf("Transmitting page %zu of %zu, %zu bytes, Tempo %d, Function %d\n", page + 1, msg->pages, msg->text[page] ? strlen(msg->text[page]) : 0, tempo, function);
+		printf("Page index %c%c%c, Continue %s, Checksum %02X\n", page_hdr.index[0], page_hdr.index[1], page_hdr.index[2], hdr.flags & HFLAG_CONTINUE ? "yes" : "no", termination[1]);
 		printf("Contents: %s\n", msg->text[page] ? msg->text[page] : "NULL");
-		//TODO set continuation flag correctly
+
+		send(config.display_fd, &hdr, sizeof(hdr), 0);
+		send(config.display_fd, &page_hdr, sizeof(page_hdr), 0);
+		send(config.display_fd, msg->text[page], strlen(msg->text[page]), 0);
+		send(config.display_fd, termination, 2, 0);
 	}
 	return 0;
 }
