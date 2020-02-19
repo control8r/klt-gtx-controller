@@ -121,7 +121,7 @@ uint8_t calc_checksum(uint8_t* data, size_t bytes){
 
 int tx_message(message* msg, uint8_t tempo, uint8_t function){
 	size_t page;
-	tempo >>= 4;
+	tempo = tempo / 9;
 	function >>= 4;
 
 	tx_header hdr = {
@@ -158,7 +158,7 @@ int tx_message(message* msg, uint8_t tempo, uint8_t function){
 		termination[1] ^= calc_checksum((uint8_t*) &page_hdr, sizeof(page_hdr));
 		termination[1] ^= calc_checksum((uint8_t*) msg->text[page], strlen(msg->text[page]));
 
-		printf("Transmitting page %zu of %zu, %zu bytes, Tempo %d, Function %d\n", page + 1, msg->pages, msg->text[page] ? strlen(msg->text[page]) : 0, tempo, function);
+		printf("Transmitting page %zu of %zu, %zu bytes, Tempo %d (%d secs), Function %d\n", page + 1, msg->pages, msg->text[page] ? strlen(msg->text[page]) : 0, tempo, page_interval[tempo], function);
 		printf("Page index %c%c%c, Continue %s, Checksum %02X\n", page_hdr.index[0], page_hdr.index[1], page_hdr.index[2], hdr.flags & HFLAG_CONTINUE ? "yes" : "no", termination[1]);
 		printf("Contents: %s\n", msg->text[page] ? msg->text[page] : "NULL");
 
