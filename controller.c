@@ -121,7 +121,7 @@ uint8_t calc_checksum(uint8_t* data, size_t bytes){
 
 int tx_message(message* msg, uint8_t tempo, uint8_t function){
 	size_t page;
-	tempo = tempo / 9;
+	tempo /= (255 / 8);
 	function >>= 4;
 
 	tx_header hdr = {
@@ -132,7 +132,7 @@ int tx_message(message* msg, uint8_t tempo, uint8_t function){
 	};
 
 	tx_page_hdr page_hdr = {
-		.tempo = PFLAGS_TEMPO_DEFAULT | tempo,
+		.tempo = PFLAGS_TEMPO_DEFAULT | (tempo + 1),
 		.function = PFLAGS_FUNCTION_DEFAULT | function,
 		.flags = PFLAGS_DEFAULT
 	};
