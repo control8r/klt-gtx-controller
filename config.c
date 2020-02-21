@@ -105,6 +105,9 @@ int config_line_message(char* line){
 
 	if(strlen(line) == 0 || last->pages == 0){
 		//new page
+		if(last->text && !last->text[last->pages - 1]){
+			return 0;
+		}
 		last->text = realloc(last->text, (last->pages + 1) * sizeof(char*));
 		last->text[last->pages] = NULL;
 		last->pages++;
@@ -146,12 +149,10 @@ int config_line(char* line){
 	}
 	else if(!strncmp(line, "[message ", 9)){
 		char* token = NULL;
-		uint8_t start = strtoul(line + 9, &token, 10);
-		if(*token != '-'){
-			printf("Invalid message configuration header: %s\n", line);
-			return 1;
+		uint8_t start = strtoul(line + 9, &token, 10), end = start;
+		if(*token == '-'){
+			end = strtoul(token + 1, NULL, 10);
 		}
-		uint8_t end = strtoul(token + 1, NULL, 10);
 
 		if(end < start || end > 255 || start > 255){
 			printf("Invalid message range: %s\n", line);

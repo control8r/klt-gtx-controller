@@ -162,10 +162,10 @@ int tx_message(message* msg, uint8_t tempo, uint8_t function){
 		printf("Page index %c%c%c, Continue %s, Checksum %02X\n", page_hdr.index[0], page_hdr.index[1], page_hdr.index[2], hdr.flags & HFLAG_CONTINUE ? "yes" : "no", termination[1]);
 		printf("Contents: %s\n", msg->text[page] ? msg->text[page] : "NULL");
 
-		send(config.display_fd, &hdr, sizeof(hdr), 0);
-		send(config.display_fd, &page_hdr, sizeof(page_hdr), 0);
-		send(config.display_fd, msg->text[page], strlen(msg->text[page]), 0);
-		send(config.display_fd, termination, 2, 0);
+		write(config.display_fd, &hdr, sizeof(hdr));
+		write(config.display_fd, &page_hdr, sizeof(page_hdr));
+		write(config.display_fd, msg->text[page], strlen(msg->text[page]));
+		write(config.display_fd, termination, 2);
 	}
 	return 0;
 }
