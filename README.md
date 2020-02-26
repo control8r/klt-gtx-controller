@@ -41,7 +41,7 @@ The following options can optionally be specified in this section:
 
 * `net <net>`: ArtNet universe high byte (network).
 * `universe <uni>`: ArtNet universe low byte (universe index).
-* `address <addr>`: ArtNet address of the first channel (zero-indexed).
+* `address <addr>`: ArtNet address of the message index channel (zero-indexed).
 
 ### `message` sections
 
@@ -75,7 +75,7 @@ The controller uses data from three ArtNet channels and maps them as follows:
 * Channel 3: Transition function (out of 16 variants)
 
 Data is only transmitted to the display when required, ie. when first receiving ArtNet
-input and subsequently when channel 0 hits a value that is mapped to a different message
+input and subsequently when channel 1 hits a value that is mapped to a different message
 than the previous value.
 
 This implies that changes to the tempo and transition function channels are only applied
